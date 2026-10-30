@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Indian Power Sector – FY2027 Outlook & Portfolio Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--navy:#0B2545;--blue:#1F5FBF;--sky:#E3EEFA;--red:#C8102E;--ink:#142B4D;--line:#C9D9EE}
+*{box-sizing:border-box}body{margin:0;font-family:"Times New Roman",Times,serif;color:var(--ink);background:#F4F8FD;font-size:16px}
+header{background:#fff;border-bottom:4px solid var(--blue);padding:14px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+header h1{margin:0;font-size:26px;color:var(--navy)}header p{margin:2px 0 0;font-size:14px;color:var(--blue);font-style:italic}
+.wrap{display:grid;grid-template-columns:380px 1fr;gap:18px;padding:18px 28px;max-width:1700px;margin:auto}
+@media(max-width:1000px){.wrap{grid-template-columns:1fr}}
+.panel{background:#fff;border:1px solid var(--line);border-top:3px solid var(--blue);padding:14px 16px;margin-bottom:16px}
+.panel h2{margin:0 0 10px;font-size:19px;color:var(--navy)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--navy);color:#fff;padding:12px 14px}.kpi:nth-child(even){background:var(--blue)}
+.kpi b{display:block;font-size:26px}.kpi span{font-size:13px;color:#CFE0F7}
+.row{display:grid;grid-template-columns:96px 1fr 54px;gap:6px;align-items:center;margin:5px 0;font-size:14px}
+.row input[type=number]{width:54px;font-family:inherit;font-size:14px;border:1px solid var(--line);padding:2px;color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--blue)}
+button{font-family:inherit;font-size:14px;background:var(--blue);color:#fff;border:0;padding:6px 10px;margin:2px 3px 2px 0;cursor:pointer}
+button.alt{background:var(--sky);color:var(--navy);border:1px solid var(--blue)}button:hover{background:var(--navy);color:#fff}
+table{border-collapse:collapse;width:100%;font-size:14px}th{background:var(--blue);color:#fff;padding:6px;text-align:center}
+td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}td:first-child,th:first-child{text-align:left;font-weight:bold}
+tr.sel td{background:var(--sky)}tbody tr{cursor:pointer}.pos{color:#0A6B3B;font-weight:bold}.neg{color:var(--red);font-weight:bold}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:1200px){.grid2{grid-template-columns:1fr}}
+.chartbox{position:relative;height:320px}.note{font-size:13px;font-style:italic;color:var(--blue)}
+.assum{display:grid;grid-template-columns:96px 1fr 1fr;gap:6px;font-size:13px;margin:3px 0;align-items:center}
+.assum input{width:100%;font-family:inherit;font-size:13px;border:1px solid var(--line);padding:2px}
+.tag{display:inline-block;background:var(--sky);border-left:3px solid var(--red);padding:2px 8px;margin:2px 4px 2px 0;font-size:13px}
+footer{padding:10px 28px 30px;font-size:12.5px;max-width:1700px;margin:auto}
+</style></head><body>
+<header><div><h1>Indian Power Sector: FY2027 Outlook &amp; Portfolio Dashboard</h1>
+<p>DMFS project dataset (FY2020–FY2026) + NSE prices and broker targets as of 30 Oct 2026</p></div>
+<div><b>Investment amount (₹)</b> <input id="amt" type="number" value="1000000" step="50000" style="font-family:inherit;font-size:15px;width:130px"></div></header>
+<div class="wrap">
+<aside>
+<div class="panel"><h2>1. Set company weights</h2>
+<div id="wts"></div>
+<div>Total entered: <b id="tot">100</b>% <span class="note">(auto-normalised to 100%)</span></div>
+<div style="margin-top:8px"><button onclick="preset('eq')">Equal</button><button onclick="preset('mc')">Market cap</button><button onclick="preset('ret')">Return-tilted</button><button onclick="preset('def')">Defensive</button><button class="alt" onclick="preset('zero')">Clear</button></div></div>
+<div class="panel"><h2>2. Model controls</h2>
+<div class="note">Blend: share of expected return taken from broker targets (where available) versus the earnings model.</div>
+<div>Broker-target weight: <b id="aV">50</b>%<input id="alpha" type="range" min="0" max="100" value="50"></div>
+<div>P/E re-rating in base case: <b id="rV">0</b>%<input id="rr" type="range" min="-30" max="30" value="0"></div>
+<h2 style="margin-top:12px;font-size:16px">FY2027E assumptions (editable)</h2>
+<div class="assum"><span></span><b>Sales growth %</b><b>Net margin %</b></div><div id="asm"></div>
+<button class="alt" onclick="resetA()">Reset assumptions</button></div>
+</aside>
+<main>
+<div class="kpis" id="kpis"></div>
+<div class="panel"><h2>Expected 12-month return by company</h2><div class="chartbox"><canvas id="c1"></canvas></div>
+<div class="note">Bars show model-based bear / base / bull returns (earnings growth × P/E change + dividend yield). Broker-target blend shifts all three.</div></div>
+<div class="grid2"><div class="panel"><h2>Portfolio allocation</h2><div class="chartbox"><canvas id="c2"></canvas></div></div>
+<div class="panel"><h2>Net profit: FY2026 actual vs FY2027E (₹ crore)</h2><div class="chartbox"><canvas id="c3"></canvas></div></div></div>
+<div class="panel"><h2>Company outlook table <span class="note">(click a row for security details)</span></h2><div style="overflow-x:auto"><table id="tbl"></table></div></div>
+<div class="panel" id="det"></div>
+<div class="panel"><h2>Contribution to portfolio base-case return</h2><div class="chartbox" style="height:280px"><canvas id="c4"></canvas></div></div>
+</main></div>
+<footer><b>Method and limits.</b> FY2026 sales, profit, ROE, ROCE, leverage, coverage, dividend yield and FCF come from the group's DMFS workbook/report. Prices, market caps, P/E, EPS and 52-week ranges are NSE quotes on 30 Oct 2026. Broker targets are from press reports dated Oct 2026 (Ambit, Jefferies, Bernstein, JM Financial, Elara, Equirus); no targets were found for NHPC, SJVN, NLC India and CESC, so those use the model only. FY2027E sales growth and margin are the group's own editable judgement inputs, informed by FY2026 momentum and sector demand, not company guidance. Model return = (1 + profit growth) × (1 + re-rating) − 1 + dividend yield; bear/bull flex profit growth by ∓12 pts and the multiple by −15%/+10%. This is an educational project tool, not investment advice; past ratios do not guarantee future returns. Refresh the prices in the DATA block of this file to update.</footer>
+<script>
+const D=[
+{n:"Adani Power",t:"ADANIPOWER",p:188.53,mc:363574,pe:19.96,eps:9.50,lo:101,hi:254.20,s:54240.52,np:12834.30,mg:23.66,g26:-3.49,roe:19.76,roce:15.77,de:0.84,cov:5.60,fcf:-10.96,dy:0,g:8,m:22,tg:[["JM Financial",258],["Elara",220],["Bernstein",220]],note:"Deleveraged from 8.52x D/E (FY20) to 0.84x. FY26 sales fell 3.49%; capacity additions assumed to restore growth, with margin normalising."},
+{n:"CESC",t:"CESC",p:125.81,mc:16677,pe:10.76,eps:11.50,lo:122.15,hi:204.50,s:18570.34,np:1541.99,mg:8.30,g26:9.23,roe:12.31,roce:10.67,de:1.73,cov:2.38,fcf:4.43,dy:4.02,g:8,m:8.3,tg:[],note:"Highest dividend yield in the set and lowest P/B. Trades near its 52-week low. No broker target found."},
+{n:"JSW Energy",t:"JSWENERGY",p:502.35,mc:92081,pe:39.70,eps:11.19,lo:427.75,hi:617.35,s:18901.13,np:2239.31,mg:11.85,g26:60.92,roe:7.28,roce:7.24,de:2.50,cov:1.34,fcf:-45.63,dy:0.42,g:25,m:12.5,tg:[["Ambit",535],["Jefferies",720],["Equirus",653]],note:"Fastest growth but tightest balance sheet (interest cover 1.34x, ND/EBITDA 7.07x). Brokers cite contracted renewable PPAs and capacity additions."},
+{n:"NHPC",t:"NHPC",p:77.00,mc:77347,pe:20.37,eps:4.08,lo:68.79,hi:87.23,s:11615.29,np:3765.74,mg:32.42,g26:11.90,roe:9.09,roce:5.67,de:1.26,cov:3.74,fcf:-67.54,dy:2.18,g:10,m:31,tg:[],note:"High margin but very low asset turnover (0.10x); FCF/sales -67.5% reflects heavy project spending. No broker target found."},
+{n:"NLC India",t:"NLCINDIA",p:231.90,mc:32156,pe:9.84,eps:23.99,lo:222.30,hi:387.80,s:17519.39,np:3522.20,mg:20.10,g26:14.34,roe:16.36,roce:10.31,de:1.30,cov:4.17,fcf:-13.60,dy:1.43,g:9,m:19,tg:[],note:"Lowest P/E in the set, near its 52-week low. FY26 profit +34.4%; current-ratio proxy is the weakest (0.90x). No broker target found."},
+{n:"NTPC",t:"NTPC",p:309.50,mc:300112,pe:10.81,eps:26.86,lo:292.05,hi:414.40,s:187384.63,np:27052.52,mg:14.44,g26:-0.40,roe:13.31,roce:8.11,de:1.33,cov:2.79,fcf:7.11,dy:2.43,g:6,m:14.4,tg:[["Ambit",395],["Jefferies",425],["Bernstein",450]],note:"Scale anchor with positive FCF. Brokers point to renewables, nuclear and pumped-storage pipeline; one house expects revenue CAGR ~8.7% to FY28E."},
+{n:"Power Grid",t:"POWERGRID",p:261.85,mc:243536,pe:15.30,eps:17.27,lo:242.30,hi:324.95,s:46732.87,np:15927.95,mg:34.08,g26:2.05,roe:15.85,roce:9.25,de:1.47,cov:2.72,fcf:11.75,dy:3.04,g:6,m:33.5,tg:[["Ambit",285],["Bernstein",313]],note:"Highest margin and cash conversion (CFO/sales 87.6%). Order-book pace is the debated risk; Ambit sees value even without acceleration."},
+{n:"SJVN",t:"SJVN",p:51.20,mc:20121,pe:31.64,eps:1.66,lo:46.08,hi:89.35,s:4528.29,np:642.08,mg:14.18,g26:47.40,roe:4.51,roce:5.37,de:2.27,cov:1.93,fcf:-35.81,dy:2.37,g:20,m:13.5,tg:[],note:"Down about 43% from its 52-week high. Weak returns (ROE 4.5%) and high leverage; growth depends on commissioning. No broker target found."},
+{n:"Tata Power",t:"TATAPOWER",p:342.70,mc:109504,pe:28.35,eps:11.71,lo:333.20,hi:464.90,s:62428.59,np:3747.19,mg:6.00,g26:-4.66,roe:9.49,roce:10.29,de:1.93,cov:2.26,fcf:-13.03,dy:0.66,g:7,m:6.2,tg:[["Ambit",420],["Bernstein",430]],note:"Ambit's top pick: 18–20 GW renewable build-out to FY32 and EBITDA growth of ~15% through FY27. Thin 6% net margin."},
+{n:"Torrent Power",t:"TORNTPOWER",p:1158.40,mc:58372,pe:25.15,eps:45.22,lo:1147.50,hi:1824.10,s:28966.31,np:2416.43,mg:8.34,g26:-0.68,roe:12.67,roce:12.86,de:0.73,cov:4.55,fcf:-9.06,dy:1.53,g:6,m:8,tg:[["Ambit",1325],["Equirus",1515]],note:"Lowest leverage and best asset turnover (0.64x), but trades at its 52-week low; merchant gas business is a risk, thermal and distribution expansion the opportunity."}];
+const N=D.length;let W=Array(N).fill(10),A=D.map(d=>({g:d.g,m:d.m})),sel=0;
+const $=id=>document.getElementById(id),pc=(x,d=1)=>(x*100).toFixed(d)+"%",cl=x=>x>=0?"pos":"neg";
+const inr=x=>"₹"+Math.round(x).toLocaleString("en-IN");
+function calc(){const a=+$("alpha").value/100,rr=+$("rr").value/100;
+return D.map((d,i)=>{const s27=d.s*(1+A[i].g/100),np27=s27*A[i].m/100,pg=np27/d.np-1,dy=d.dy/100;
+const base=(1+pg)*(1+rr)-1+dy,bear=(1+pg-.12)*(.85)-1+dy,bull=(1+pg+.12)*(1.10)-1+dy;
+let an=null,tgt=null;if(d.tg.length){tgt=d.tg.reduce((x,y)=>x+y[1],0)/d.tg.length;an=tgt/d.p-1+dy}
+const sh=an===null?0:a*(an-base);
+return{s27,np27,pg,base:base+sh,bear:bear+sh,bull:bull+sh,model:base,an,tgt,pos:(d.p-d.lo)/(d.hi-d.lo),fpe:d.p/(d.eps*(1+pg))}})}
+function wn(){const t=W.reduce((x,y)=>x+y,0);return W.map(w=>t?w/t:0)}
+function build(){let h="";D.forEach((d,i)=>{h+=`<div class="row"><span>${d.n}</span><input type="range" min="0" max="100" value="${W[i]}" id="s${i}" oninput="setW(${i},this.value)"><input type="number" min="0" max="100" value="${W[i]}" id="n${i}" onchange="setW(${i},this.value)"></div>`});$("wts").innerHTML=h;
+let q="";D.forEach((d,i)=>{q+=`<div class="assum"><span>${d.n}</span><input type="number" step="0.5" value="${A[i].g}" onchange="A[${i}].g=+this.value;upd()"><input type="number" step="0.1" value="${A[i].m}" onchange="A[${i}].m=+this.value;upd()"></div>`});$("asm").innerHTML=q}
+function setW(i,v){W[i]=Math.max(0,+v||0);$("s"+i).value=W[i];$("n"+i).value=W[i];upd()}
+function syncW(){W.forEach((w,i)=>{$("s"+i).value=w;$("n"+i).value=w})}
+function preset(k){const R=calc();if(k=="eq")W=Array(N).fill(10);
+if(k=="mc"){const t=D.reduce((x,d)=>x+d.mc,0);W=D.map(d=>Math.round(d.mc/t*100))}
+if(k=="ret"){const m=R.map(r=>Math.max(r.base,0.001));const t=m.reduce((x,y)=>x+y,0);W=m.map(x=>Math.round(x/t*100))}
+if(k=="def"){const m=D.map(d=>Math.max(0.01,(3.2-d.de)*Math.min(d.cov,5)));const t=m.reduce((x,y)=>x+y,0);W=m.map(x=>Math.round(x/t*100))}
+if(k=="zero")W=Array(N).fill(0);syncW();upd()}
+function resetA(){A=D.map(d=>({g:d.g,m:d.m}));build();upd()}
+let ch={};
+function mk(id,cfg){if(ch[id]){ch[id].data=cfg.data;ch[id].update()}else ch[id]=new Chart($(id),cfg)}
+const FONT={family:"Times New Roman",size:12};
+function upd(){const R=calc(),w=wn();$("tot").textContent=W.reduce((x,y)=>x+y,0);$("aV").textContent=$("alpha").value;$("rV").textContent=$("rr").value;
+const sum=f=>w.reduce((x,wi,i)=>x+wi*f(i),0),amt=+$("amt").value||0;
+const pb=sum(i=>R[i].bear),pm=sum(i=>R[i].base),pu=sum(i=>R[i].bull);
+$("kpis").innerHTML=`<div class="kpi"><b class="">${pc(pm)}</b><span>Base-case 12-month return</span></div><div class="kpi"><b>${inr(amt*(1+pm))}</b><span>Value of ${inr(amt)} in base case</span></div><div class="kpi"><b>${pc(pb,0)} / ${pc(pu,0)}</b><span>Bear / bull portfolio return</span></div><div class="kpi"><b>${sum(i=>D[i].dy).toFixed(2)}%</b><span>Weighted dividend yield</span></div><div class="kpi"><b>${sum(i=>D[i].de).toFixed(2)}x</b><span>Weighted debt/equity</span></div><div class="kpi"><b>${sum(i=>D[i].roe).toFixed(1)}%</b><span>Weighted FY26 ROE</span></div>`;
+mk("c1",{type:"bar",data:{labels:D.map(d=>d.n),datasets:[{label:"Bear",data:R.map(r=>r.bear*100),backgroundColor:"#C8102E"},{label:"Base",data:R.map(r=>r.base*100),backgroundColor:"#1F5FBF"},{label:"Bull",data:R.map(r=>r.bull*100),backgroundColor:"#7FA8DD"}]},options:{maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>v+"%",font:FONT}},x:{ticks:{font:FONT}}},plugins:{legend:{labels:{font:FONT}}}}});
+mk("c2",{type:"doughnut",data:{labels:D.map(d=>d.n),datasets:[{data:w.map(x=>+(x*100).toFixed(1)),backgroundColor:["#0B2545","#1F5FBF","#7FA8DD","#C8102E","#3A7BD5","#14396B","#A9C6EC","#8E1022","#5C8FD6","#DCE8F7"]}]},options:{maintainAspectRatio:false,plugins:{legend:{position:"right",labels:{font:FONT}}}}});
+mk("c3",{type:"bar",data:{labels:D.map(d=>d.n),datasets:[{label:"FY2026",data:D.map(d=>d.np),backgroundColor:"#0B2545"},{label:"FY2027E",data:R.map(r=>Math.round(r.np27)),backgroundColor:"#1F5FBF"}]},options:{maintainAspectRatio:false,scales:{y:{type:"logarithmic",ticks:{font:FONT}},x:{ticks:{font:FONT}}},plugins:{legend:{labels:{font:FONT}}}}});
+mk("c4",{type:"bar",data:{labels:D.map(d=>d.n),datasets:[{label:"Contribution (pts)",data:D.map((d,i)=>+(w[i]*R[i].base*100).toFixed(2)),backgroundColor:D.map((d,i)=>w[i]*R[i].base>=0?"#1F5FBF":"#C8102E")}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+" pts",font:FONT}},x:{ticks:{font:FONT}}}}});
+let t=`<thead><tr><th>Company</th><th>Weight</th><th>Price ₹</th><th>FY26 NP ₹cr</th><th>FY27E NP ₹cr</th><th>Profit growth</th><th>Broker avg target</th><th>Target upside</th><th>Bear</th><th>Base</th><th>Bull</th><th>Fwd P/E</th></tr></thead><tbody>`;
+D.forEach((d,i)=>{const r=R[i];t+=`<tr class="${i==sel?"sel":""}" onclick="sel=${i};upd()"><td>${d.n}</td><td>${(w[i]*100).toFixed(1)}%</td><td>${d.p.toLocaleString("en-IN")}</td><td>${d.np.toLocaleString("en-IN",{maximumFractionDigits:0})}</td><td>${Math.round(r.np27).toLocaleString("en-IN")}</td><td class="${cl(r.pg)}">${pc(r.pg)}</td><td>${r.tgt?"₹"+Math.round(r.tgt).toLocaleString("en-IN"):"n/a"}</td><td class="${r.an===null?"":cl(r.an)}">${r.an===null?"–":pc(r.an)}</td><td class="${cl(r.bear)}">${pc(r.bear)}</td><td class="${cl(r.base)}">${pc(r.base)}</td><td class="${cl(r.bull)}">${pc(r.bull)}</td><td>${r.fpe.toFixed(1)}x</td></tr>`});
+$("tbl").innerHTML=t+"</tbody>";
+const d=D[sel],r=R[sel];
+$("det").innerHTML=`<h2>${d.n} (NSE: ${d.t}) – security details</h2><p>${d.note}</p>
+<span class="tag">Price ₹${d.p}</span><span class="tag">Mkt cap ₹${d.mc.toLocaleString("en-IN")} cr</span><span class="tag">P/E ${d.pe}x</span><span class="tag">EPS (TTM) ₹${d.eps}</span><span class="tag">52-wk ₹${d.lo} – ₹${d.hi}</span><span class="tag">Position in range ${(r.pos*100).toFixed(0)}%</span><span class="tag">Div. yield ${d.dy}%</span>
+<br><span class="tag">FY26 ROE ${d.roe}%</span><span class="tag">ROCE ${d.roce}%</span><span class="tag">D/E ${d.de}x</span><span class="tag">Interest cover ${d.cov}x</span><span class="tag">FCF/sales ${d.fcf}%</span><span class="tag">FY26 sales growth ${d.g26}%</span><span class="tag">Net margin ${d.mg}%</span>
+<p><b>Broker targets:</b> ${d.tg.length?d.tg.map(x=>`${x[0]} ₹${x[1]} (${pc(x[1]/d.p-1,0)})`).join(" · "):"none found in public reports; model only"}.</p>
+<p><b>Model walk:</b> FY27E sales ₹${Math.round(r.s27).toLocaleString("en-IN")} cr at ${A[sel].m}% margin = profit ₹${Math.round(r.np27).toLocaleString("en-IN")} cr (${pc(r.pg)}); model-only base return ${pc(r.model)}; blended base ${pc(r.base)}.</p>`}
+build();["alpha","rr","amt"].forEach(id=>$(id).addEventListener("input",upd));upd();
+</script></body></html>
